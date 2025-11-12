@@ -1,77 +1,71 @@
 import redis from "redis";
-import envconfig from "./constants.js";
 
 // Initialize Redis client
 export const redisClient = redis.createClient({
-  url: `redis://${envconfig.REDIS_HOST}:${envconfig.REDIS_PORT}`,
-  password: envconfig.REDIS_PASSWORD || undefined,
+  url: process.env.REDIS_URL || "redis://localhost:6379",
+  // password: process.env.REDIS_PASSWORD, // uncomment if needed
 });
 
-// Handle Redis client events
 redisClient.on("connect", () => console.log("✅ Connected to Redis"));
 redisClient.on("error", (err) => console.error("❌ Redis client error:", err));
 
-// Connect to Redis (async IIFE)
-(async () => {
+// Connect to Redis
+export const connectRedis = async () => {
   try {
     await redisClient.connect();
+    console.log("✅ Redis connection established");
   } catch (err) {
     console.error("❌ Redis connection failed:", err);
+    process.exit(1); // stop app if Redis fails
   }
-})();
+};
 
 // --- Redis helper functions --- //
-export const setOtp = async (key, value) => {
+
+// Set key with optional expiry in seconds
+export const set = async (key, value, expireInSeconds = null) => {
   try {
-    // EX = expiry in seconds → 300s = 5min
-    await redisClient.setEx(key, 300, value);
-    console.log(`✅ OTP stored for key: ${key}`);
+    if (expireInSeconds) {
+      await redisClient.setEx(key, expireInSeconds, value);
+    } else {
+      await redisClient.set(key, value);
+    }
+    return true;
   } catch (err) {
-    console.error("Redis setOtp error:", err);
+    console.error(`❌ Redis set error (${key}):`, err);
+    throw err; // let caller handle error
   }
 };
 
-export const set = async (key, value) => {
-  try {
-    await redisClient.set(key, value);
-    console.log(`✅ Key set: ${key}`);
-  } catch (err) {
-    console.error("Redis set error:", err);
-  }
-};
-
+// Get key
 export const get = async (key) => {
   try {
     const data = await redisClient.get(key);
-    console.log(`📦 Key fetched: ${key}`);
-    return data;
+    return data; // returns string or null
   } catch (err) {
-    console.error("Redis get error:", err);
+    console.error(`❌ Redis get error (${key}):`, err);
     return null;
   }
 };
 
- export const del = async (key) => {
+// Delete key
+export const del = async (key) => {
   try {
-    await redisClient.del(key);
-    console.log(`🗑️ Key deleted: ${key}`);
+    const result = await redisClient.del(key); // returns number of keys deleted
+    return result > 0;
   } catch (err) {
-    console.error("Redis del error:", err);
+    console.error(`❌ Redis del error (${key}):`, err);
+    throw err;
   }
 };
 
- export const persist = async (key) => {
+// Persist key (remove expiry)
+export const persist = async (key) => {
   try {
-    const result = await redisClient.persist(key);
-    if (result === 1) {
-      console.log(`✅ Key is now persistent (no expiry): ${key}`);
-    } else {
-      console.log(`ℹ️ Key not found or already persistent: ${key}`);
-    }
+    const result = await redisClient.persist(key); // returns 1 if key persisted
+    return result === 1;
   } catch (err) {
-    console.error("Redis persist error:", err);
+    console.error(`❌ Redis persist error (${key}):`, err);
+    throw err;
   }
 };
-
-
-

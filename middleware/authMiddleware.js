@@ -1,35 +1,33 @@
-import jwt from "jsonwebtoken"; // For verify
+import jwt from "jsonwebtoken";
 import envconfig from "../utils/constants.js";
-// Destructure verify from jwt (since jsonwebtoken is CommonJS)
-const { verify } = jwt;
 
-// Read refresh token secret from env
 const ACCESS_TOKEN_SECRET = envconfig.ACCESS_TOKEN_SECRET;
 
-export const authMiddleware = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
   try {
-    // 1️⃣ Get token from header
     const authHeader = req.headers.authorization;
-
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Access token missing or malformed" });
+      return res.status(401).json({ message: "Authorization token missing" });
     }
 
-    // 2️⃣ Extract token from "Bearer <token>"
-    const token = authHeader.split(" ")[1];
+    const token = authHeader.split(" ")[1] || req.cookies?.accessToken;
 
-    // 3️⃣ Verify token
-    verify(token, ACCESS_TOKEN_SECRET, (err, user) => {
-      if (err) {
-        return res.status(403).json({ error: "Invalid or expired access token" });
-      }
+    const decoded = jwt.verify(token, ACCESS_TOKEN_SECRET);
 
-      // 4️⃣ Attach decoded user info to request
-      req.user = user;
-      next(); // proceed only after successful verification
-    });
+    req.user = decoded; // attach decoded payload
+    next();
   } catch (err) {
-    console.error("Auth Middleware Error:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
+    console.error("Auth middleware error:", err.message);
+
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({
+        message: "Access token expired",
+        code: "TOKEN_EXPIRED",
+      });
+    }
+
+    return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+export default authMiddleware;

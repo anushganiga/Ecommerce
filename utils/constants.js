@@ -1,22 +1,16 @@
 import dotenv from 'dotenv'
-const envfilepath = process.env.NODE_ENV === "dev" ? ".env.dev" : ".env";
-dotenv.config({ path: envfilepath })
+// Load env file based on NODE_ENV
+const envFile = process.env.NODE_ENV === "prod" ? "./.env" : "./.env.dev";
+dotenv.config({ path: envFile });
 
-const envconfig = {
-    PORT: process.env.PORT,
-
-    NODE_ENV: process.env.NODE_ENV,
-
-    REDIS_HOST: process.env.REDIS_HOST,
-    REDIS_PORT: process.env.REDIS_PORT,
-    REDIS_PASSWORD: process.env.REDIS_PASSWORD,
-
+const envfile = {
+    PORT: process.env.PORT || 3004,
+    NODE_ENV: process.env.NODE_ENV || 'dev',
     ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
     REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
     ACCESS_TOKEN_EXP: process.env.ACCESS_TOKEN_EXP,
     REFRESH_TOKEN_EXP: process.env.REFRESH_TOKEN_EXP,
-
     DATABASE_URL: process.env.DATABASE_URL,
-};
+}
 
-export default envconfig;
+export default envfile;
